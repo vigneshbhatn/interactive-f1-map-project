@@ -14,13 +14,26 @@ CORS(app)
 
 # MongoDB connection (localhost)
 client = MongoClient("mongodb://localhost:27017")  # Local MongoDB connection string
-db = client["f1_world_map"]  # Database name
+db = client["f1db"]  # Database name
 circuits_collection = db["circuits"]  # Collection name
+
+def get_flag_url(country):
+    try:
+        # Call Rest Countries API
+        response = requests.get(f"https://restcountries.com/v3.1/name/{country}")
+        if response.status_code == 200:
+            country_data = response.json()
+            return country_data[0]["flags"]["png"]  # Fetch PNG flag URL
+    except Exception as e:
+        print(f"Error fetching flag for {country}: {str(e)}")
+    return "https://example.com/default_flag.png"  # Default flag if not found
 
 # Test route
 @app.route("/")
 def home():
     return jsonify({"message": "Welcome to the F1 World Map API!"})
+
+
 
 # Fetch and store current circuits for 2024 from Ergast API
 @app.route("/fetch-circuits", methods=["GET"])
@@ -32,11 +45,15 @@ def fetch_circuits():
         circuits_data = response.json()["MRData"]["CircuitTable"]["Circuits"]
 
         for circuit in circuits_data:
+        # Fetch flag URL for the country
+            flag_image = get_flag_url(circuit["Location"]["country"])
+
+        for circuit in circuits_data:
             circuit_entry = {
                 "name": circuit["circuitName"],
                 "location": circuit["Location"]["locality"],
                 "country": circuit["Location"]["country"],
-                "url": circuit["url"]
+                "flag_image": flag_image,
             }
 
             # Insert into MongoDB if not already present
@@ -54,4 +71,4 @@ def get_circuits():
     return jsonify(circuits)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5555)
